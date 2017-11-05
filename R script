@@ -1,0 +1,87 @@
+##Per the instructions in the assignment, the script should do the following:
+
+Merges the training and the test sets to create one data set.
+Extracts only the measurements on the mean and standard deviation for each measurement.
+Uses descriptive activity names to name the activities in the data set
+Appropriately labels the data set with descriptive variable names.
+From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+
+
+## Download and unzip the dataset:
+
+fileUrl <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+download.file(fileUrl, "finaldata.zip", method="curl")
+
+if(!file.exists("./UCI HAR Dataset")) {
+  unzip("finaldata.zip")
+}
+
+# Read train files :
+xtrain <- read.table("./UCI HAR Dataset/train/X_train.txt")
+ytrain <- read.table("./UCI HAR Dataset/train/Y_train.txt")
+subjtrain <- read.table("./UCI HAR Dataset/train/subject_train.txt")
+
+# Reading test files
+xtest <- read.table("./UCI HAR Dataset/test/X_test.txt")
+ytest <- read.table("./UCI HAR Dataset/test/Y_test.txt")
+subjtest <- read.table("./UCI HAR Dataset/test/subject_test.txt")
+
+# Reading other files from UCI HAR Database
+actlabels <- read.table("./UCI HAR Dataset/activity_labels.txt")
+features <- read.table("./UCI HAR Dataset/features.txt")
+
+#Merge
+View(xtrain)
+View(ytrain)
+
+# Merge feature data
+featuresdata <- rbind(xtrain, xtest)
+
+# Merge activity data
+activitydata <- rbind(ytrain, ytest)
+
+# Merge subject data
+subjdata <- rbind(subjtrain, subjtest)
+
+# set names to variables
+names(subjdata)   <- "subject"
+names(activitydata) <- "activity"
+names(featuresdata) <- features$V2
+
+# Merding all datas in one
+completedataset <- cbind(featuresdata, activitydata, subjdata)
+
+
+## Extract measurements on the mean and standard deviation
+
+# get only columns with mean() or std() in their names
+meanstd_features <- features$V2[grep("mean\\(\\)|std\\(\\)", features$V2)]
+
+# subset the desired columns
+selectedCols <- c(as.character(meanstd_features), "subject", "activity" )
+completedataset <- subset(completedataset, select=selectedCols)
+
+## Use descriptive activity names to name the activities in the data set
+
+# update values with correct activity names
+completedataset$activity <- actlabels[completedataset$activity, 2]
+
+
+## Appropriately label the data set with descriptive variable names
+
+names(completedataset) <-gsub("^t", "time", names(completedataset))
+names(completedataset) <-gsub("^f", "frequency", names(completedataset))
+names(completedataset) <-gsub("Acc", "Accelerometer", names(completedataset))
+names(completedataset) <-gsub("Gyro", "Gyroscope", names(completedataset))
+names(completedataset) <-gsub("Mag", "Magnitude", names(completedataset))
+names(completedataset) <-gsub("BodyBody", "Body", names(completedataset))
+
+
+## Create a tidy dataset with subject average for each activity within each var
+
+library(dplyr)
+library(plyr)
+
+finaldata <- ddply(completedataset, .(subject, activity), function(x) colMeans(x[, 1:66]))
+write.table(finaldata, "tidy.txt", row.name=FALSE)
